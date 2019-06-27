@@ -32,7 +32,7 @@ import com.tomtom.online.sdk.routing.RoutingApi;
 import com.tomtom.online.sdk.routing.data.FullRoute;
 import com.tomtom.online.sdk.routing.data.RouteQuery;
 import com.tomtom.online.sdk.routing.data.RouteQueryBuilder;
-import com.tomtom.online.sdk.routing.data.RouteResult;
+import com.tomtom.online.sdk.routing.data.RouteResponse;
 import com.tomtom.online.sdk.routing.data.RouteType;
 import com.tomtom.online.sdk.search.OnlineSearchApi;
 import com.tomtom.online.sdk.search.SearchApi;
@@ -85,7 +85,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         this.tomtomMap.setMyLocationEnabled(true);
         this.tomtomMap.addOnMapLongClickListener(this);
         this.tomtomMap.getMarkerSettings().setMarkersClustering(true);
-        this.tomtomMap.getMarkerSettings().setMarkerBalloonViewAdapter(createCustomViewAdapter()) ;
+        this.tomtomMap.getMarkerSettings().setMarkerBalloonViewAdapter(createCustomViewAdapter());
     }
 
     @Override
@@ -114,7 +114,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void handleLongClick(@NonNull LatLng latLng) {
-        searchApi.reverseGeocoding(new ReverseGeocoderSearchQueryBuilder(latLng.getLatitude(), latLng.getLongitude()))
+        searchApi.reverseGeocoding(new ReverseGeocoderSearchQueryBuilder(latLng.getLatitude(), latLng.getLongitude()).build())
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new DisposableSingleObserver<ReverseGeocoderSearchResponse>() {
@@ -132,8 +132,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     private void processResponse(ReverseGeocoderSearchResponse response) {
                         if (response.hasResults()) {
                             processFirstResult(response.getAddresses().get(0).getPosition());
-                        }
-                        else {
+                        } else {
                             Toast.makeText(MainActivity.this, getString(R.string.geocode_no_results), Toast.LENGTH_SHORT).show();
                         }
                     }
@@ -164,7 +163,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void initTomTomServices() {
         MapFragment mapFragment = (MapFragment) getSupportFragmentManager().findFragmentById(R.id.mapFragment);
-        mapFragment.getAsyncMap(this);
+        if (mapFragment != null) {
+            mapFragment.getAsyncMap(this);
+        }
         searchApi = OnlineSearchApi.create(this);
         routingApi = OnlineRoutingApi.create(this);
     }
@@ -192,19 +193,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         btnRestaurant.setOnClickListener(searchButtonListener);
         btnAtm.setOnClickListener(searchButtonListener);
 
-        btnHelp.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, HelpActivity.class);
-                startActivity(intent);
-            }
+        btnHelp.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, HelpActivity.class);
+            startActivity(intent);
         });
-        btnClear.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                clearMap();
-            }
-        });
+        btnClear.setOnClickListener(v -> clearMap());
 
         editTextPois.addTextChangedListener(new BaseTextWatcher() {
             @Override
@@ -250,13 +243,16 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             private boolean isWayPointPositionSet() {
                 return wayPointPosition != null;
             }
+
             private void searchAlongTheRoute(Route route, final String textToSearch) {
                 final Integer MAX_DETOUR_TIME = 1000;
                 final Integer QUERY_LIMIT = 10;
 
                 disableSearchButtons();
                 showDialogInProgress();
-                searchApi.alongRouteSearch(new AlongRouteSearchQueryBuilder(textToSearch, route.getCoordinates(), MAX_DETOUR_TIME).withLimit(QUERY_LIMIT))
+                searchApi.alongRouteSearch(new AlongRouteSearchQueryBuilder(textToSearch, route.getCoordinates(), MAX_DETOUR_TIME)
+                        .withLimit(QUERY_LIMIT)
+                        .build())
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(new DisposableSingleObserver<AlongRouteSearchResponse>() {
@@ -325,13 +321,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void showDialogInProgress() {
-        if(!dialogInProgress.isShowing()) {
+        if (!dialogInProgress.isShowing()) {
             dialogInProgress.show();
         }
     }
 
     private void dismissDialogInProgress() {
-        if(dialogInProgress.isShowing()) {
+        if (dialogInProgress.isShowing()) {
             dialogInProgress.dismiss();
         }
     }
@@ -354,7 +350,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     private void setWayPoint(Marker marker) {
                         wayPointPosition = marker.getPosition();
                         tomtomMap.clearRoute();
-                        drawRouteWithWayPoints(departurePosition, destinationPosition, new LatLng[] {wayPointPosition});
+                        drawRouteWithWayPoints(departurePosition, destinationPosition, new LatLng[]{wayPointPosition});
                         marker.deselect();
                     }
                 });
@@ -386,8 +382,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private RouteQuery createRouteQuery(LatLng start, LatLng stop, LatLng[] wayPoints) {
         return (wayPoints != null) ?
-                new RouteQueryBuilder(start, stop).withWayPoints(wayPoints).withRouteType(RouteType.FASTEST) :
-                new RouteQueryBuilder(start, stop).withRouteType(RouteType.FASTEST);
+                new RouteQueryBuilder(start, stop).withWayPoints(wayPoints).withRouteType(RouteType.FASTEST).build() :
+                new RouteQueryBuilder(start, stop).withRouteType(RouteType.FASTEST).build();
     }
 
     private void drawRoute(LatLng start, LatLng stop) {
@@ -401,10 +397,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         routingApi.planRoute(routeQuery)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new DisposableSingleObserver<RouteResult>() {
+                .subscribe(new DisposableSingleObserver<RouteResponse>() {
 
                     @Override
-                    public void onSuccess(RouteResult routeResult) {
+                    public void onSuccess(RouteResponse routeResult) {
                         dismissDialogInProgress();
                         displayRoutes(routeResult.getRoutes());
                         tomtomMap.displayRoutesOverview();
@@ -413,7 +409,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     private void displayRoutes(List<FullRoute> routes) {
                         for (FullRoute fullRoute : routes) {
                             route = tomtomMap.addRoute(new RouteBuilder(
-                                    fullRoute.getCoordinates()).startIcon(departureIcon).endIcon(destinationIcon).isActive(true));
+                                    fullRoute.getCoordinates()).startIcon(departureIcon).endIcon(destinationIcon));
                         }
                     }
 
@@ -435,9 +431,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private abstract class BaseTextWatcher implements TextWatcher {
         @Override
-        public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+        }
 
         @Override
-        public void afterTextChanged(Editable s) { }
+        public void afterTextChanged(Editable s) {
+        }
     }
 }
