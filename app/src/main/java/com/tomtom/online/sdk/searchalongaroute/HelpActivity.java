@@ -1,7 +1,7 @@
 package com.tomtom.online.sdk.searchalongaroute;
 
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatActivity;
 
 public class HelpActivity extends AppCompatActivity {
 
