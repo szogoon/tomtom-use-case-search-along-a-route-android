@@ -18,7 +18,9 @@
         <meta-data
             android:name="OnlineRouting.Key"
             android:value="_______YOUR_KEY_GOES_HERE_______" />
-
+        <meta-data
+            android:name="OnlineTraffic.Key"
+            android:value="_______YOUR_KEY_GOES_HERE_______" />
         <activity
             android:name=".MainActivity"
             android:screenOrientation="portrait"
