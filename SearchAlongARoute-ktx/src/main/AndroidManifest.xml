@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.searchalongaroute_ktx">
+    package="com.tomtom.online.sdk.searchalongaroute_ktx">
 
     <application
         android:allowBackup="true"
@@ -13,7 +13,6 @@
             android:name=".MainActivity"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="stateHidden">
-
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -23,8 +22,7 @@
             android:name=".HelpActivity"
             android:screenOrientation="portrait"
             android:label="@string/title_activity_help"
-            android:theme="@style/AppTheme">
-        </activity>
+            android:theme="@style/AppTheme"/>
 
         <meta-data
             android:name="OnlineMaps.Key"

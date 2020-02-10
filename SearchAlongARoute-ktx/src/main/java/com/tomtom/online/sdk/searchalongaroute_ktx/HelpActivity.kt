@@ -1,4 +1,4 @@
-package com.example.searchalongaroute_ktx
+package com.tomtom.online.sdk.searchalongaroute_ktx
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle

@@ -7,7 +7,7 @@ android {
 
 
     defaultConfig {
-        applicationId "com.example.searchalongaroute_ktx"
+        applicationId 'com.tomtom.online.sdk.searchalongaroute_ktx'
         minSdkVersion 23
         targetSdkVersion 29
         versionCode 1

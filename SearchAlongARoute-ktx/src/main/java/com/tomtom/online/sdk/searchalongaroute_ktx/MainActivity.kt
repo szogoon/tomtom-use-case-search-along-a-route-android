@@ -1,4 +1,4 @@
-package com.example.searchalongaroute_ktx
+package com.tomtom.online.sdk.searchalongaroute_ktx
 
 import android.app.Dialog
 import android.content.Intent
@@ -188,7 +188,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
                             drawRoute(departurePosition, destinationPosition)
                         }
                         val textToSearch: String = editTextPois!!.text.toString()
-                        if (!textToSearch.isEmpty()) {
+                        if (textToSearch.isNotEmpty()) {
                             tomtomMap!!.removeMarkers()
                             searchAlongTheRoute(route, textToSearch)
                         }
@@ -206,12 +206,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
                     }
 
                 private fun searchAlongTheRoute(route: Route?, textToSearch: String) {
-                    val MAX_DETOUR_TIME: Int = 1000
-                    val QUERY_LIMIT: Int = 10
+                    val maxDetourTime = 1000
+                    val queryLimit = 10
                     disableSearchButtons()
                     showDialogInProgress()
-                    searchApi!!.alongRouteSearch(AlongRouteSearchQueryBuilder(textToSearch, route!!.coordinates, MAX_DETOUR_TIME)
-                            .withLimit(QUERY_LIMIT)
+                    searchApi!!.alongRouteSearch(AlongRouteSearchQueryBuilder(textToSearch, route!!.coordinates, maxDetourTime)
+                            .withLimit(queryLimit)
                             .build())
                             .subscribeOn(Schedulers.io())
                             .observeOn(AndroidSchedulers.mainThread())
