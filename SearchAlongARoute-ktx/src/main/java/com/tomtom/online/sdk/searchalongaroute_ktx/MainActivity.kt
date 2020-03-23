@@ -25,26 +25,22 @@ import com.tomtom.online.sdk.search.data.reversegeocoder.ReverseGeocoderSearchRe
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.observers.DisposableSingleObserver
 import io.reactivex.schedulers.Schedulers
+import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.android.synthetic.main.marker_custom_balloon.*
 
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickListener {
-    private var tomtomMap: TomtomMap? = null
-    private var searchApi: SearchApi? = null
-    private var routingApi: RoutingApi? = null
+    private lateinit var tomtomMap: TomtomMap
+    private lateinit var searchApi: SearchApi
+    private lateinit var routingApi: RoutingApi
     private var route: Route? = null
     private var departurePosition: LatLng? = null
     private var destinationPosition: LatLng? = null
     private var wayPointPosition: LatLng? = null
     private var departureIcon: Icon? = null
     private var destinationIcon: Icon? = null
-    private var btnHelp: Button? = null
-    private var btnClear: ImageButton? = null
-    private var btnGasStation: ImageButton? = null
-    private var btnRestaurant: ImageButton? = null
-    private var btnAtm: ImageButton? = null
-    private var btnSearch: ImageButton? = null
-    private var editTextPois: EditText? = null
-    private var dialogInProgress: Dialog? = null
+    private lateinit var dialogInProgress: Dialog
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -56,10 +52,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
 
     override fun onMapReady(tomtomMap: TomtomMap) {
         this.tomtomMap = tomtomMap
-        this.tomtomMap!!.isMyLocationEnabled = true
-        this.tomtomMap!!.addOnMapLongClickListener(this)
-        this.tomtomMap!!.markerSettings.setMarkersClustering(true)
-        this.tomtomMap!!.markerSettings.markerBalloonViewAdapter = createCustomViewAdapter()
+        this.tomtomMap.let {
+            it.isMyLocationEnabled = true
+            it.addOnMapLongClickListener(this)
+            it.markerSettings.setMarkersClustering(true)
+            it.markerSettings.markerBalloonViewAdapter = createCustomViewAdapter()
+        }
     }
 
     override fun onMapLongClick(latLng: LatLng) {
@@ -85,7 +83,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
                 ) && (route == null)
 
     private fun handleLongClick(latLng: LatLng) {
-        searchApi!!.reverseGeocoding(ReverseGeocoderSearchQueryBuilder(latLng.latitude, latLng.longitude).build())
+        searchApi.reverseGeocoding(ReverseGeocoderSearchQueryBuilder(latLng.latitude, latLng.longitude).build())
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(object : DisposableSingleObserver<ReverseGeocoderSearchResponse?>() {
@@ -100,7 +98,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
 
                     private fun processResponse(response: ReverseGeocoderSearchResponse) {
                         if (response.hasResults()) {
-                            processFirstResult(response.addresses.get(0).position)
+                            processFirstResult(response.addresses[0].position)
                         } else {
                             Toast.makeText(this@MainActivity, getString(R.string.geocode_no_results), Toast.LENGTH_SHORT).show()
                         }
@@ -111,7 +109,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
                             setAndDisplayDeparturePosition(geocodedPosition)
                         } else {
                             destinationPosition = geocodedPosition
-                            tomtomMap!!.removeMarkers()
+                            tomtomMap.removeMarkers()
                             drawRoute(departurePosition, destinationPosition)
                             enableSearchButtons()
                         }
@@ -126,11 +124,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        tomtomMap!!.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        tomtomMap.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
     private fun initTomTomServices() {
-        (supportFragmentManager.findFragmentById(R.id.mapFragment) as MapFragment?)?.getAsyncMap(this)
+        (mapFragment as MapFragment).getAsyncMap(this)
         searchApi = OnlineSearchApi.create(this)
         routingApi = OnlineRoutingApi.create(this)
     }
@@ -138,30 +136,23 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
     private fun initUIViews() {
         departureIcon = Icon.Factory.fromResources(this@MainActivity, R.drawable.ic_map_route_departure)
         destinationIcon = Icon.Factory.fromResources(this@MainActivity, R.drawable.ic_map_route_destination)
-        editTextPois = findViewById(R.id.edittext_main_poisearch)
-        btnAtm = findViewById(R.id.btn_main_atm)
-        btnHelp = findViewById(R.id.btn_main_help)
-        btnClear = findViewById(R.id.btn_main_clear)
-        btnGasStation = findViewById(R.id.btn_main_gasstation)
-        btnRestaurant = findViewById(R.id.btn_main_restaurant)
-        btnSearch = findViewById(R.id.btn_main_poisearch)
-        dialogInProgress = Dialog(this)
-        dialogInProgress!!.setContentView(R.layout.dialog_in_progress)
-        dialogInProgress!!.setCanceledOnTouchOutside(false)
+        dialogInProgress = Dialog(this).apply {
+            this.setContentView(R.layout.dialog_in_progress)
+            this.setCanceledOnTouchOutside(false)
+        }
     }
 
     private fun setupUIViewListeners() {
-        val searchButtonListener: View.OnClickListener = searchButtonListener
-        btnSearch!!.setOnClickListener(searchButtonListener)
-        btnGasStation!!.setOnClickListener(searchButtonListener)
-        btnRestaurant!!.setOnClickListener(searchButtonListener)
-        btnAtm!!.setOnClickListener(searchButtonListener)
-        btnHelp!!.setOnClickListener { v: View? ->
+        btn_main_poisearch.setOnClickListener(searchButtonListener)
+        btn_main_gasstation.setOnClickListener(searchButtonListener)
+        btn_main_restaurant.setOnClickListener(searchButtonListener)
+        btn_main_atm.setOnClickListener(searchButtonListener)
+        btn_main_help.setOnClickListener {
             val intent = Intent(this@MainActivity, HelpActivity::class.java)
             startActivity(intent)
         }
-        btnClear!!.setOnClickListener { clearMap() }
-        editTextPois!!.addTextChangedListener(object : BaseTextWatcher() {
+        btn_main_clear.setOnClickListener { clearMap() }
+        edittext_main_poisearch.addTextChangedListener(object : BaseTextWatcher() {
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
                 deselectShortcutButtons()
             }
@@ -179,17 +170,17 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
                     if (isRouteSet) {
                         val description: Optional<CharSequence> = Optional.fromNullable(v.contentDescription)
                         if (description.isPresent) {
-                            editTextPois!!.setText(description.get())
+                            edittext_main_poisearch.setText(description.get())
                             deselectShortcutButtons()
                             v.isSelected = true
                         }
                         if (isWayPointPositionSet) {
-                            tomtomMap!!.clear()
+                            tomtomMap.clear()
                             drawRoute(departurePosition, destinationPosition)
                         }
-                        val textToSearch: String = editTextPois!!.text.toString()
+                        val textToSearch: String = edittext_main_poisearch.text.toString()
                         if (textToSearch.isNotEmpty()) {
-                            tomtomMap!!.removeMarkers()
+                            tomtomMap.removeMarkers()
                             searchAlongTheRoute(route, textToSearch)
                         }
                     }
@@ -210,7 +201,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
                     val queryLimit = 10
                     disableSearchButtons()
                     showDialogInProgress()
-                    searchApi!!.alongRouteSearch(AlongRouteSearchQueryBuilder(textToSearch, route!!.coordinates, maxDetourTime)
+                    searchApi.alongRouteSearch(AlongRouteSearchQueryBuilder(textToSearch, route!!.coordinates, maxDetourTime)
                             .withLimit(queryLimit)
                             .build())
                             .subscribeOn(Schedulers.io())
@@ -227,7 +218,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
                                         for (result: AlongRouteSearchResult in results) {
                                             createAndDisplayCustomMarker(result.position, result)
                                         }
-                                        tomtomMap!!.zoomToAllMarkers()
+                                        tomtomMap.zoomToAllMarkers()
                                     } else {
                                         Toast.makeText(this@MainActivity, String.format(getString(R.string.no_search_results), textToSearch), Toast.LENGTH_LONG).show()
                                     }
@@ -236,13 +227,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
                                 private fun createAndDisplayCustomMarker(position: LatLng, result: AlongRouteSearchResult) {
                                     val address: String = result.address.freeformAddress
                                     val poiName: String = result.poi.name
-                                    val markerBalloonData = BaseMarkerBalloon()
-                                    markerBalloonData.addProperty(getString(R.string.poi_name_key), poiName)
-                                    markerBalloonData.addProperty(getString(R.string.address_key), address)
+                                    val markerBalloonData = BaseMarkerBalloon().apply {
+                                        this.addProperty(getString(R.string.poi_name_key), poiName)
+                                        this.addProperty(getString(R.string.address_key), address)
+                                    }
                                     val markerBuilder: MarkerBuilder = MarkerBuilder(position)
                                             .markerBalloon(markerBalloonData)
                                             .shouldCluster(true)
-                                    tomtomMap!!.addMarker(markerBuilder)
+                                    tomtomMap.addMarker(markerBuilder)
                                 }
 
                                 override fun onError(e: Throwable) {
@@ -255,55 +247,52 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
         }
 
     private fun disableSearchButtons() {
-        btnSearch!!.isEnabled = false
-        btnGasStation!!.isEnabled = false
-        btnAtm!!.isEnabled = false
-        btnRestaurant!!.isEnabled = false
-        btnClear!!.isEnabled = false
+        btn_main_poisearch.isEnabled = false
+        btn_main_gasstation.isEnabled = false
+        btn_main_atm.isEnabled = false
+        btn_main_restaurant.isEnabled = false
+        btn_main_clear.isEnabled = false
     }
 
     private fun enableSearchButtons() {
-        btnSearch!!.isEnabled = true
-        btnGasStation!!.isEnabled = true
-        btnAtm!!.isEnabled = true
-        btnRestaurant!!.isEnabled = true
-        btnClear!!.isEnabled = true
+        btn_main_poisearch.isEnabled = true
+        btn_main_gasstation.isEnabled = true
+        btn_main_atm.isEnabled = true
+        btn_main_restaurant.isEnabled = true
+        btn_main_clear.isEnabled = true
     }
 
     private fun deselectShortcutButtons() {
-        btnGasStation!!.isSelected = false
-        btnRestaurant!!.isSelected = false
-        btnAtm!!.isSelected = false
+        btn_main_gasstation.isSelected = false
+        btn_main_restaurant.isSelected = false
+        btn_main_atm.isSelected = false
     }
 
     private fun showDialogInProgress() {
-        if (!dialogInProgress!!.isShowing) {
-            dialogInProgress!!.show()
+        if (!dialogInProgress.isShowing) {
+            dialogInProgress.show()
         }
     }
 
     private fun dismissDialogInProgress() {
-        if (dialogInProgress!!.isShowing) {
-            dialogInProgress!!.dismiss()
+        if (dialogInProgress.isShowing) {
+            dialogInProgress.dismiss()
         }
     }
 
     private fun createCustomViewAdapter(): SingleLayoutBalloonViewAdapter {
         return object : SingleLayoutBalloonViewAdapter(R.layout.marker_custom_balloon) {
             override fun onBindView(view: View, marker: Marker, baseMarkerBalloon: BaseMarkerBalloon) {
-                val btnAddWayPoint: Button = view.findViewById(R.id.btn_balloon_waypoint)
-                val textViewPoiName: TextView = view.findViewById(R.id.textview_balloon_poiname)
-                val textViewPoiAddress: TextView = view.findViewById(R.id.textview_balloon_poiaddress)
-                textViewPoiName.text = baseMarkerBalloon.getStringProperty(applicationContext.getString(R.string.poi_name_key))
-                textViewPoiAddress.text = baseMarkerBalloon.getStringProperty(applicationContext.getString(R.string.address_key))
-                btnAddWayPoint.setOnClickListener(object : View.OnClickListener {
+                textview_balloon_poiname.text = baseMarkerBalloon.getStringProperty(applicationContext.getString(R.string.poi_name_key))
+                textview_balloon_poiaddress.text = baseMarkerBalloon.getStringProperty(applicationContext.getString(R.string.address_key))
+                btn_balloon_waypoint.setOnClickListener(object : View.OnClickListener {
                     override fun onClick(v: View) {
                         setWayPoint(marker)
                     }
 
                     private fun setWayPoint(marker: Marker) {
                         wayPointPosition = marker.position
-                        tomtomMap!!.clearRoute()
+                        tomtomMap.clearRoute()
                         drawRouteWithWayPoints(departurePosition, destinationPosition, arrayOf(wayPointPosition!!))
                         marker.deselect()
                     }
@@ -313,20 +302,20 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
     }
 
     private fun createMarkerIfNotPresent(position: LatLng?, icon: Icon?) {
-        val optionalMarker: Optional<Marker> = tomtomMap!!.findMarkerByPosition(position)
+        val optionalMarker: Optional<Marker> = tomtomMap.findMarkerByPosition(position)
         if (!optionalMarker.isPresent) {
-            tomtomMap!!.addMarker(MarkerBuilder((position)!!)
+            tomtomMap.addMarker(MarkerBuilder((position)!!)
                     .icon(icon))
         }
     }
 
     private fun clearMap() {
-        tomtomMap!!.clear()
+        tomtomMap.clear()
         departurePosition = null
         destinationPosition = null
         route = null
         disableSearchButtons()
-        editTextPois!!.text.clear()
+        edittext_main_poisearch.text.clear()
     }
 
     private fun handleApiError(e: Throwable) {
@@ -335,7 +324,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
     }
 
     private fun createRouteQuery(start: LatLng?, stop: LatLng?, wayPoints: Array<LatLng>?): RouteQuery {
-        return if ((wayPoints != null)) RouteQueryBuilder(start, stop).withWayPoints(wayPoints).withRouteType(RouteType.FASTEST).build() else RouteQueryBuilder(start, stop).withRouteType(RouteType.FASTEST).build()
+        return if (wayPoints != null) RouteQueryBuilder(start, stop).withWayPoints(wayPoints).withRouteType(RouteType.FASTEST).build() else RouteQueryBuilder(start, stop).withRouteType(RouteType.FASTEST).build()
     }
 
     private fun drawRoute(start: LatLng?, stop: LatLng?) {
@@ -346,19 +335,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
     private fun drawRouteWithWayPoints(start: LatLng?, stop: LatLng?, wayPoints: Array<LatLng>?) {
         val routeQuery: RouteQuery = createRouteQuery(start, stop, wayPoints)
         showDialogInProgress()
-        routingApi!!.planRoute(routeQuery)
+        routingApi.planRoute(routeQuery)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(object : DisposableSingleObserver<RouteResponse?>() {
                     override fun onSuccess(routeResult: RouteResponse) {
                         dismissDialogInProgress()
                         displayRoutes(routeResult.routes)
-                        tomtomMap!!.displayRoutesOverview()
+                        tomtomMap.displayRoutesOverview()
                     }
 
                     private fun displayRoutes(routes: List<FullRoute>) {
                         for (fullRoute: FullRoute in routes) {
-                            route = tomtomMap!!.addRoute(RouteBuilder(
+                            route = tomtomMap.addRoute(RouteBuilder(
                                     fullRoute.coordinates).startIcon(departureIcon).endIcon(destinationIcon))
                         }
                     }
