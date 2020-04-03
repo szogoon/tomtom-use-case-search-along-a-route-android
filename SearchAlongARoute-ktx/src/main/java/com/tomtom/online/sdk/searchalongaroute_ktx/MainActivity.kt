@@ -324,7 +324,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
     }
 
     private fun createRouteQuery(start: LatLng?, stop: LatLng?, wayPoints: Array<LatLng>?): RouteQuery {
-        return if (wayPoints != null) RouteQueryBuilder(start, stop).withWayPoints(wayPoints).withRouteType(RouteType.FASTEST).build() else RouteQueryBuilder(start, stop).withRouteType(RouteType.FASTEST).build()
+        return if (wayPoints != null)
+            RouteQueryBuilder(start, stop).withWayPoints(wayPoints).withRouteType(RouteType.FASTEST).build()
+        else RouteQueryBuilder(start, stop).withRouteType(RouteType.FASTEST).build()
     }
 
     private fun drawRoute(start: LatLng?, stop: LatLng?) {
