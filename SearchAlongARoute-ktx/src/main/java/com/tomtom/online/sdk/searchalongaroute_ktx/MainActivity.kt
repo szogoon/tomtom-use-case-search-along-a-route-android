@@ -26,7 +26,6 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.observers.DisposableSingleObserver
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_main.*
-import kotlinx.android.synthetic.main.marker_custom_balloon.*
 
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickListener {
@@ -283,9 +282,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
     private fun createCustomViewAdapter(): SingleLayoutBalloonViewAdapter {
         return object : SingleLayoutBalloonViewAdapter(R.layout.marker_custom_balloon) {
             override fun onBindView(view: View, marker: Marker, baseMarkerBalloon: BaseMarkerBalloon) {
-                textview_balloon_poiname.text = baseMarkerBalloon.getStringProperty(applicationContext.getString(R.string.poi_name_key))
-                textview_balloon_poiaddress.text = baseMarkerBalloon.getStringProperty(applicationContext.getString(R.string.address_key))
-                btn_balloon_waypoint.setOnClickListener(object : View.OnClickListener {
+                val btnAddWayPoint: Button = view.findViewById(R.id.btn_balloon_waypoint)
+                val textViewPoiName: TextView = view.findViewById(R.id.textview_balloon_poiname)
+                val textViewPoiAddress: TextView = view.findViewById(R.id.textview_balloon_poiaddress)
+                textViewPoiName.text = baseMarkerBalloon.getStringProperty(applicationContext.getString(R.string.poi_name_key))
+                textViewPoiAddress.text = baseMarkerBalloon.getStringProperty(applicationContext.getString(R.string.address_key))
+                btnAddWayPoint.setOnClickListener(object : View.OnClickListener {
                     override fun onClick(v: View) {
                         setWayPoint(marker)
                     }
