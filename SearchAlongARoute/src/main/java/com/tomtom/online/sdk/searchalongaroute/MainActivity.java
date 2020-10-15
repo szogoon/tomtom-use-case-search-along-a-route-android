@@ -3,8 +3,6 @@ package com.tomtom.online.sdk.searchalongaroute;
 import android.app.Dialog;
 import android.content.Intent;
 import android.os.Bundle;
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
@@ -14,11 +12,16 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+
 import com.google.common.base.Optional;
 import com.tomtom.online.sdk.common.location.LatLng;
+import com.tomtom.online.sdk.map.ApiKeyType;
 import com.tomtom.online.sdk.map.BaseMarkerBalloon;
 import com.tomtom.online.sdk.map.Icon;
 import com.tomtom.online.sdk.map.MapFragment;
+import com.tomtom.online.sdk.map.MapProperties;
 import com.tomtom.online.sdk.map.Marker;
 import com.tomtom.online.sdk.map.MarkerBuilder;
 import com.tomtom.online.sdk.map.OnMapReadyCallback;
@@ -29,11 +32,14 @@ import com.tomtom.online.sdk.map.TomtomMap;
 import com.tomtom.online.sdk.map.TomtomMapCallback;
 import com.tomtom.online.sdk.routing.OnlineRoutingApi;
 import com.tomtom.online.sdk.routing.RoutingApi;
-import com.tomtom.online.sdk.routing.data.FullRoute;
-import com.tomtom.online.sdk.routing.data.RouteQuery;
-import com.tomtom.online.sdk.routing.data.RouteQueryBuilder;
-import com.tomtom.online.sdk.routing.data.RouteResponse;
-import com.tomtom.online.sdk.routing.data.RouteType;
+import com.tomtom.online.sdk.routing.RoutingException;
+import com.tomtom.online.sdk.routing.route.RouteCalculationDescriptor;
+import com.tomtom.online.sdk.routing.route.RouteCallback;
+import com.tomtom.online.sdk.routing.route.RouteDescriptor;
+import com.tomtom.online.sdk.routing.route.RoutePlan;
+import com.tomtom.online.sdk.routing.route.RouteSpecification;
+import com.tomtom.online.sdk.routing.route.description.RouteType;
+import com.tomtom.online.sdk.routing.route.information.FullRoute;
 import com.tomtom.online.sdk.search.OnlineSearchApi;
 import com.tomtom.online.sdk.search.SearchApi;
 import com.tomtom.online.sdk.search.data.alongroute.AlongRouteSearchQueryBuilder;
@@ -42,11 +48,17 @@ import com.tomtom.online.sdk.search.data.alongroute.AlongRouteSearchResult;
 import com.tomtom.online.sdk.search.data.reversegeocoder.ReverseGeocoderSearchQueryBuilder;
 import com.tomtom.online.sdk.search.data.reversegeocoder.ReverseGeocoderSearchResponse;
 
+import org.jetbrains.annotations.NotNull;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.observers.DisposableSingleObserver;
 import io.reactivex.schedulers.Schedulers;
+
+import static java.util.Arrays.asList;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback,
         TomtomMapCallback.OnMapLongClickListener {
@@ -162,12 +174,20 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void initTomTomServices() {
-        MapFragment mapFragment = (MapFragment) getSupportFragmentManager().findFragmentById(R.id.mapFragment);
-        if (mapFragment != null) {
-            mapFragment.getAsyncMap(this);
-        }
-        searchApi = OnlineSearchApi.create(this);
-        routingApi = OnlineRoutingApi.create(this);
+        Map<ApiKeyType, String> mapKeys = new HashMap<>();
+        mapKeys.put(ApiKeyType.MAPS_API_KEY, BuildConfig.MAPS_API_KEY);
+
+        MapProperties mapProperties = new MapProperties.Builder()
+                .keys(mapKeys)
+                .build();
+        MapFragment mapFragment = MapFragment.newInstance(mapProperties);
+        getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.mapFragment, mapFragment)
+                .commit();
+        mapFragment.getAsyncMap(this);
+        searchApi = OnlineSearchApi.create(this, BuildConfig.SEARCH_API_KEY);
+        routingApi = OnlineRoutingApi.create(this, BuildConfig.ROUTING_API_KEY);
     }
 
     private void initUIViews() {
@@ -380,10 +400,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         Toast.makeText(MainActivity.this, getString(R.string.api_response_error, e.getLocalizedMessage()), Toast.LENGTH_LONG).show();
     }
 
-    private RouteQuery createRouteQuery(LatLng start, LatLng stop, LatLng[] wayPoints) {
+    private RouteCalculationDescriptor createRouteCalculationDescriptor(RouteDescriptor routeDescriptor, LatLng[] wayPoints) {
         return (wayPoints != null) ?
-                new RouteQueryBuilder(start, stop).withWayPoints(wayPoints).withRouteType(RouteType.FASTEST).build() :
-                new RouteQueryBuilder(start, stop).withRouteType(RouteType.FASTEST).build();
+                new RouteCalculationDescriptor.Builder()
+                        .routeDescription(routeDescriptor)
+                        .waypoints(asList(wayPoints)).build() :
+                new RouteCalculationDescriptor.Builder()
+                        .routeDescription(routeDescriptor).build();
     }
 
     private void drawRoute(LatLng start, LatLng stop) {
@@ -391,34 +414,40 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         drawRouteWithWayPoints(start, stop, null);
     }
 
+    private RouteSpecification createRouteSpecification(LatLng start, LatLng stop, LatLng[] wayPoints) {
+        RouteDescriptor routeDescriptor = new RouteDescriptor.Builder()
+                .routeType(RouteType.FASTEST)
+                .build();
+        RouteCalculationDescriptor routeCalculationDescriptor = createRouteCalculationDescriptor(routeDescriptor, wayPoints);
+        return new RouteSpecification.Builder(start, stop)
+                .routeCalculationDescriptor(routeCalculationDescriptor)
+                .build();
+    }
+
     private void drawRouteWithWayPoints(LatLng start, LatLng stop, LatLng[] wayPoints) {
-        RouteQuery routeQuery = createRouteQuery(start, stop, wayPoints);
+        RouteSpecification routeSpecification = createRouteSpecification(start, stop, wayPoints);
         showDialogInProgress();
-        routingApi.planRoute(routeQuery)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new DisposableSingleObserver<RouteResponse>() {
+        routingApi.planRoute(routeSpecification, new RouteCallback() {
+            @Override
+            public void onSuccess(@NotNull RoutePlan routePlan) {
+                dismissDialogInProgress();
+                displayRoutes(routePlan.getRoutes());
+                tomtomMap.displayRoutesOverview();
+            }
 
-                    @Override
-                    public void onSuccess(RouteResponse routeResult) {
-                        dismissDialogInProgress();
-                        displayRoutes(routeResult.getRoutes());
-                        tomtomMap.displayRoutesOverview();
-                    }
+            @Override
+            public void onError(@NotNull RoutingException e) {
+                handleApiError(e);
+                clearMap();
+            }
 
-                    private void displayRoutes(List<FullRoute> routes) {
-                        for (FullRoute fullRoute : routes) {
-                            route = tomtomMap.addRoute(new RouteBuilder(
-                                    fullRoute.getCoordinates()).startIcon(departureIcon).endIcon(destinationIcon));
-                        }
-                    }
-
-                    @Override
-                    public void onError(Throwable e) {
-                        handleApiError(e);
-                        clearMap();
-                    }
-                });
+            private void displayRoutes(List<FullRoute> routes) {
+                for (FullRoute fullRoute : routes) {
+                    route = tomtomMap.addRoute(new RouteBuilder(
+                            fullRoute.getCoordinates()).startIcon(departureIcon).endIcon(destinationIcon));
+                }
+            }
+        });
     }
 
     private boolean isDestinationPositionSet() {

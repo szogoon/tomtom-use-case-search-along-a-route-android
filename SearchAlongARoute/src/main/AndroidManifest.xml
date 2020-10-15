@@ -23,19 +23,6 @@
             android:screenOrientation="portrait"
             android:label="@string/title_activity_help"
             android:theme="@style/AppTheme"/>
-
-        <meta-data
-            android:name="OnlineMaps.Key"
-            android:value="_______YOUR_KEY_GOES_HERE_______" />
-        <meta-data
-            android:name="OnlineSearch.Key"
-            android:value="_______YOUR_KEY_GOES_HERE_______" />
-        <meta-data
-            android:name="OnlineRouting.Key"
-            android:value="_______YOUR_KEY_GOES_HERE_______" />
-        <meta-data
-            android:name="OnlineTraffic.Key"
-            android:value="_______YOUR_KEY_GOES_HERE_______" />
     </application>
 
 </manifest>

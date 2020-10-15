@@ -6,7 +6,9 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
-import android.widget.*
+import android.widget.Button
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.common.base.Optional
 import com.tomtom.online.sdk.common.location.LatLng
@@ -14,7 +16,9 @@ import com.tomtom.online.sdk.map.*
 import com.tomtom.online.sdk.map.TomtomMapCallback.OnMapLongClickListener
 import com.tomtom.online.sdk.routing.OnlineRoutingApi
 import com.tomtom.online.sdk.routing.RoutingApi
-import com.tomtom.online.sdk.routing.data.*
+import com.tomtom.online.sdk.routing.RoutingException
+import com.tomtom.online.sdk.routing.route.*
+import com.tomtom.online.sdk.routing.route.information.FullRoute
 import com.tomtom.online.sdk.search.OnlineSearchApi
 import com.tomtom.online.sdk.search.SearchApi
 import com.tomtom.online.sdk.search.data.alongroute.AlongRouteSearchQueryBuilder
@@ -127,9 +131,21 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
     }
 
     private fun initTomTomServices() {
-        (mapFragment as MapFragment).getAsyncMap(this)
-        searchApi = OnlineSearchApi.create(this)
-        routingApi = OnlineRoutingApi.create(this)
+        val mapKeys = mapOf(
+                ApiKeyType.MAPS_API_KEY to BuildConfig.MAPS_API_KEY
+        )
+        val mapProperties = MapProperties.Builder()
+                .keys(mapKeys)
+                .build()
+        val mapFragment = MapFragment.newInstance(mapProperties)
+        supportFragmentManager
+                .beginTransaction()
+                .replace(R.id.mapFragment, mapFragment)
+                .commit()
+        mapFragment.getAsyncMap(this)
+
+        searchApi = OnlineSearchApi.create(this, BuildConfig.SEARCH_API_KEY)
+        routingApi = OnlineRoutingApi.create(this, BuildConfig.ROUTING_API_KEY)
     }
 
     private fun initUIViews() {
@@ -325,10 +341,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
         Toast.makeText(this@MainActivity, getString(R.string.api_response_error, e.localizedMessage), Toast.LENGTH_LONG).show()
     }
 
-    private fun createRouteQuery(start: LatLng?, stop: LatLng?, wayPoints: Array<LatLng>?): RouteQuery {
-        return if (wayPoints != null)
-            RouteQueryBuilder(start, stop).withWayPoints(wayPoints).withRouteType(RouteType.FASTEST).build()
-        else RouteQueryBuilder(start, stop).withRouteType(RouteType.FASTEST).build()
+    private fun createRouteCalculationDescriptor(routeDescriptor: RouteDescriptor, wayPoints: Array<LatLng>?): RouteCalculationDescriptor? {
+        return if (wayPoints != null) RouteCalculationDescriptor.Builder()
+                .routeDescription(routeDescriptor)
+                .waypoints(listOf(*wayPoints)).build()
+        else RouteCalculationDescriptor.Builder()
+                .routeDescription(routeDescriptor).build()
     }
 
     private fun drawRoute(start: LatLng?, stop: LatLng?) {
@@ -336,31 +354,39 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
         drawRouteWithWayPoints(start, stop, null)
     }
 
+    private fun createRouteSpecification(start: LatLng, stop: LatLng, wayPoints: Array<LatLng>?): RouteSpecification? {
+        val routeDescriptor = RouteDescriptor.Builder()
+                .routeType(com.tomtom.online.sdk.routing.route.description.RouteType.FASTEST)
+                .build()
+        val routeCalculationDescriptor = createRouteCalculationDescriptor(routeDescriptor, wayPoints)
+        return RouteSpecification.Builder(start, stop)
+                .routeCalculationDescriptor(routeCalculationDescriptor!!)
+                .build()
+    }
+
     private fun drawRouteWithWayPoints(start: LatLng?, stop: LatLng?, wayPoints: Array<LatLng>?) {
-        val routeQuery: RouteQuery = createRouteQuery(start, stop, wayPoints)
+        val routeSpecification = createRouteSpecification(start!!, stop!!, wayPoints)
         showDialogInProgress()
-        routingApi.planRoute(routeQuery)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(object : DisposableSingleObserver<RouteResponse?>() {
-                    override fun onSuccess(routeResult: RouteResponse) {
-                        dismissDialogInProgress()
-                        displayRoutes(routeResult.routes)
-                        tomtomMap.displayRoutesOverview()
-                    }
 
-                    private fun displayRoutes(routes: List<FullRoute>) {
-                        for (fullRoute: FullRoute in routes) {
-                            route = tomtomMap.addRoute(RouteBuilder(
-                                    fullRoute.coordinates).startIcon(departureIcon).endIcon(destinationIcon))
-                        }
-                    }
+        routingApi.planRoute(routeSpecification!!, object : RouteCallback {
+            override fun onSuccess(routePlan: RoutePlan) {
+                dismissDialogInProgress()
+                displayRoutes(routePlan.routes)
+                tomtomMap.displayRoutesOverview()
+            }
 
-                    override fun onError(e: Throwable) {
-                        handleApiError(e)
-                        clearMap()
-                    }
-                })
+            override fun onError(e: RoutingException) {
+                handleApiError(e)
+                clearMap()
+            }
+
+            private fun displayRoutes(routes: List<FullRoute>) {
+                for (fullRoute in routes) {
+                    route = tomtomMap.addRoute(RouteBuilder(
+                            fullRoute.getCoordinates()).startIcon(departureIcon).endIcon(destinationIcon))
+                }
+            }
+        })
     }
 
     private val isDestinationPositionSet: Boolean
