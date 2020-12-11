@@ -33,7 +33,7 @@ import kotlinx.android.synthetic.main.activity_main.*
 
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickListener {
-    private lateinit var tomtomMap: TomtomMap
+    private var tomtomMap: TomtomMap? = null
     private lateinit var searchApi: SearchApi
     private lateinit var routingApi: RoutingApi
     private var route: Route? = null
@@ -53,9 +53,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
         disableSearchButtons()
     }
 
+    override fun onResume() {
+        super.onResume()
+        tomtomMap?.addOnMapLongClickListener(this)
+    }
+
     override fun onMapReady(tomtomMap: TomtomMap) {
         this.tomtomMap = tomtomMap
-        this.tomtomMap.let {
+        this.tomtomMap?.let {
             it.isMyLocationEnabled = true
             it.addOnMapLongClickListener(this)
             it.markerSettings.setMarkersClustering(true)
@@ -112,7 +117,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
                             setAndDisplayDeparturePosition(geocodedPosition)
                         } else {
                             destinationPosition = geocodedPosition
-                            tomtomMap.removeMarkers()
+                            tomtomMap?.removeMarkers()
                             drawRoute(departurePosition, destinationPosition)
                             enableSearchButtons()
                         }
@@ -127,7 +132,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        tomtomMap.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        tomtomMap?.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
     private fun initTomTomServices() {
@@ -190,12 +195,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
                             v.isSelected = true
                         }
                         if (isWayPointPositionSet) {
-                            tomtomMap.clear()
+                            tomtomMap?.clear()
                             drawRoute(departurePosition, destinationPosition)
                         }
                         val textToSearch: String = edittext_main_poisearch.text.toString()
                         if (textToSearch.isNotEmpty()) {
-                            tomtomMap.removeMarkers()
+                            tomtomMap?.removeMarkers()
                             searchAlongTheRoute(route, textToSearch)
                         }
                     }
@@ -233,7 +238,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
                                         for (result: AlongRouteSearchResult in results) {
                                             createAndDisplayCustomMarker(result.position, result)
                                         }
-                                        tomtomMap.zoomToAllMarkers()
+                                        tomtomMap?.zoomToAllMarkers()
                                     } else {
                                         Toast.makeText(this@MainActivity, String.format(getString(R.string.no_search_results), textToSearch), Toast.LENGTH_LONG).show()
                                     }
@@ -249,7 +254,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
                                     val markerBuilder: MarkerBuilder = MarkerBuilder(position)
                                             .markerBalloon(markerBalloonData)
                                             .shouldCluster(true)
-                                    tomtomMap.addMarker(markerBuilder)
+                                    tomtomMap?.addMarker(markerBuilder)
                                 }
 
                                 override fun onError(e: Throwable) {
@@ -310,7 +315,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
 
                     private fun setWayPoint(marker: Marker) {
                         wayPointPosition = marker.position
-                        tomtomMap.clearRoute()
+                        tomtomMap?.clearRoute()
                         drawRouteWithWayPoints(departurePosition, destinationPosition, arrayOf(wayPointPosition!!))
                         marker.deselect()
                     }
@@ -320,15 +325,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
     }
 
     private fun createMarkerIfNotPresent(position: LatLng?, icon: Icon?) {
-        val optionalMarker: Optional<Marker> = tomtomMap.findMarkerByPosition(position)
-        if (!optionalMarker.isPresent) {
-            tomtomMap.addMarker(MarkerBuilder((position)!!)
+        val optionalMarker: Optional<Marker>? = tomtomMap?.findMarkerByPosition(position)
+        if (optionalMarker != null && !optionalMarker.isPresent) {
+            tomtomMap?.addMarker(MarkerBuilder((position)!!)
                     .icon(icon))
         }
     }
 
     private fun clearMap() {
-        tomtomMap.clear()
+        tomtomMap?.clear()
         departurePosition = null
         destinationPosition = null
         route = null
@@ -372,7 +377,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
             override fun onSuccess(routePlan: RoutePlan) {
                 dismissDialogInProgress()
                 displayRoutes(routePlan.routes)
-                tomtomMap.displayRoutesOverview()
+                tomtomMap?.displayRoutesOverview()
             }
 
             override fun onError(e: RoutingException) {
@@ -382,7 +387,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback, OnMapLongClickList
 
             private fun displayRoutes(routes: List<FullRoute>) {
                 for (fullRoute in routes) {
-                    route = tomtomMap.addRoute(RouteBuilder(
+                    route = tomtomMap?.addRoute(RouteBuilder(
                             fullRoute.getCoordinates()).startIcon(departureIcon).endIcon(destinationIcon))
                 }
             }

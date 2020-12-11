@@ -92,6 +92,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        if (this.tomtomMap != null) {
+            this.tomtomMap.addOnMapLongClickListener(this);
+        }
+    }
+
+    @Override
     public void onMapReady(@NonNull final TomtomMap tomtomMap) {
         this.tomtomMap = tomtomMap;
         this.tomtomMap.setMyLocationEnabled(true);
