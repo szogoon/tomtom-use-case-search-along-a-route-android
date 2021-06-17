@@ -2,6 +2,7 @@ package com.tomtom.online.sdk.searchalongaroute;
 
 import android.app.Dialog;
 import android.content.Intent;
+import android.location.Location;
 import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -16,7 +17,11 @@ import android.widget.Toast;
 
 import com.google.common.base.Optional;
 import com.tomtom.online.sdk.common.location.LatLng;
+import com.tomtom.online.sdk.location.LocationUpdateListener;
 import com.tomtom.online.sdk.map.BaseMarkerBalloon;
+import com.tomtom.online.sdk.map.Chevron;
+import com.tomtom.online.sdk.map.ChevronBuilder;
+import com.tomtom.online.sdk.map.ChevronPosition;
 import com.tomtom.online.sdk.map.Icon;
 import com.tomtom.online.sdk.map.MapFragment;
 import com.tomtom.online.sdk.map.Marker;
@@ -27,6 +32,11 @@ import com.tomtom.online.sdk.map.RouteBuilder;
 import com.tomtom.online.sdk.map.SingleLayoutBalloonViewAdapter;
 import com.tomtom.online.sdk.map.TomtomMap;
 import com.tomtom.online.sdk.map.TomtomMapCallback;
+import com.tomtom.online.sdk.map.driving.LatLngTraceMatchingDataProvider;
+import com.tomtom.online.sdk.map.driving.Matcher;
+import com.tomtom.online.sdk.map.driving.MatcherFactory;
+import com.tomtom.online.sdk.map.driving.MatcherListener;
+import com.tomtom.online.sdk.matching.MatchingDataProvider;
 import com.tomtom.online.sdk.routing.OnlineRoutingApi;
 import com.tomtom.online.sdk.routing.RoutingApi;
 import com.tomtom.online.sdk.routing.data.FullRoute;
@@ -41,6 +51,8 @@ import com.tomtom.online.sdk.search.data.alongroute.AlongRouteSearchResponse;
 import com.tomtom.online.sdk.search.data.alongroute.AlongRouteSearchResult;
 import com.tomtom.online.sdk.search.data.reversegeocoder.ReverseGeocoderSearchQueryBuilder;
 import com.tomtom.online.sdk.search.data.reversegeocoder.ReverseGeocoderSearchResponse;
+
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
@@ -68,6 +80,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private ImageButton btnSearch;
     private EditText editTextPois;
     private Dialog dialogInProgress;
+    private Matcher matcher;
+    private Chevron chevron;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -391,6 +405,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         drawRouteWithWayPoints(start, stop, null);
     }
 
+    public Chevron getChevron() {
+        return chevron;
+    }
+
     private void drawRouteWithWayPoints(LatLng start, LatLng stop, LatLng[] wayPoints) {
         RouteQuery routeQuery = createRouteQuery(start, stop, wayPoints);
         showDialogInProgress();
@@ -403,7 +421,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     public void onSuccess(RouteResponse routeResult) {
                         dismissDialogInProgress();
                         displayRoutes(routeResult.getRoutes());
+                        startChevron(routeResult.getRoutes().get(0).getCoordinates());
                         tomtomMap.displayRoutesOverview();
+
                     }
 
                     private void displayRoutes(List<FullRoute> routes) {
@@ -411,6 +431,34 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                             route = tomtomMap.addRoute(new RouteBuilder(
                                     fullRoute.getCoordinates()).startIcon(departureIcon).endIcon(destinationIcon));
                         }
+                    }
+
+                    private void startChevron(List<LatLng> route) {
+                        createChevron();
+                        MatchingDataProvider routeMatchingProvider = LatLngTraceMatchingDataProvider.fromPoints(route);
+                        MatcherListener matcherListener = new ChevronMatcherUpdater(getChevron(), tomtomMap);
+                        matcher = MatcherFactory.createMatcher(routeMatchingProvider);
+                        matcher.setMatcherListener(matcherListener);
+                        registerLocationUpdates(tomtomMap);
+                    }
+
+                    private void createChevron() {
+                        Icon activeIcon = Icon.Factory.fromResources(getApplicationContext(), R.drawable.chevron_color);
+                        Icon inactiveIcon = Icon.Factory.fromResources(getApplicationContext(), R.drawable.chevron_shadow);
+                        //tag::doc_create_chevron[]
+                        ChevronBuilder chevronBuilder = ChevronBuilder.create(activeIcon, inactiveIcon);
+                        chevron = tomtomMap.getDrivingSettings().addChevron(chevronBuilder);
+                        //end::doc_create_chevron[]
+                    }
+
+                    public final void registerLocationUpdates(@NotNull TomtomMap tomtomMap) {
+                        LocationUpdateListener listener = location -> {
+                            chevron.setPosition((new ChevronPosition.Builder(location)).build());
+                            chevron.show();
+                            matcher.match(location);
+                        };
+                        tomtomMap.addLocationUpdateListener(listener);
+//                        tomtomMap.removeLocationUpdateListener(listener);
                     }
 
                     @Override
